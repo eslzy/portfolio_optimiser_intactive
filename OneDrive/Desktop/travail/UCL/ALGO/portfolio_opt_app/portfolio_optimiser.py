@@ -91,9 +91,9 @@ if opt_style == "Maximize Sharpe Ratio":
     include_rf = st.checkbox("Include risk-free asset as an option in portfolio", value=False)
     if include_rf:
         tickers.append("RISK_FREE_ASSET")
-        mean_an_returns = mean_an_returns.append(pd.Series(rf, index=["RISK_FREE"]))
+        mean_an_returns = pd.concat([mean_an_returns, pd.Series([rf], index=["RISK_FREE"])])
         cov_rf_row = pd.Series(0, index=mean_an_returns.index)
-        covariance = covariance.append(pd.DataFrame([cov_rf_row], index=["RISK_FREE"]))
+        covariance = pd.concat([covariance, pd.DataFrame([cov_rf_row], index=["RISK_FREE"])])
         cov_rf_col = pd.Series(0, index=mean_an_returns.index)
         covariance["RISK_FREE"] = cov_rf_col
         covariance.loc["RISK_FREE", "RISK_FREE"] = 0.0
@@ -158,7 +158,11 @@ st.write(f"Expected Annual Volatility: {opt_volatility:.2%}")
 
 if opt_style == "Maximize Sharpe Ratio":
     sharpe_ratio = (opt_return - rf) / opt_volatility
-    st.write(f"Sharpe Ratio: {sharpe_ratio:.2f}")
+    if np.isfinite(sharpe_ratio):
+        st.write(f"Sharpe Ratio: {sharpe_ratio:.2f}")
+    else:
+        st.warning("Sharpe Ratio could not be calculated (invalid values).")
+
 
 
 fig, ax = plt.subplots()
