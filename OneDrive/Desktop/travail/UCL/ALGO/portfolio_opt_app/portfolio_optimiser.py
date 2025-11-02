@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 
-st.title("Portfolio Otimiser")
+st.title("Portfolio Optimiser")
 
 
 enddate = dt.datetime.now()
@@ -61,7 +61,7 @@ except Exception as e:
     rf = 0.02
 # idek if its worth having a region selection, idk how relevant it'll be in this context and idk how to handle multi currency portfolios
 
-st.write(f"Using risk-free rate: {rf:.4f}")
+st.write(f"Using risk-free rate: {float(rf):.4f}")
 
 #different optimisation types, idk if this is a good idea , complicates it a lot 
 opt_style = st.radio("Select optimization opt_style:", ("Maximize Sharpe Ratio", "Optimize for Risk Preference"))
