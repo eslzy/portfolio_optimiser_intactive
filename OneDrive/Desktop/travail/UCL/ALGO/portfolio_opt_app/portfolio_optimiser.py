@@ -41,11 +41,13 @@ try:
         rf_data = yf.download("^IRX", period="1d")
         rf = rf_data["Close"].iloc[-1] / 100 if not rf_data.empty else 0.02
     elif region == "Belgium":
-        rf = 0.02  # placeholder
+        rf = 0.02
     elif region == "Europe":
-        rf = 0.02  # placeholder
-    else:
+        rf = 0.02
+    elif region == "Custom rate":
         rf = st.number_input("Enter custom risk-free rate (as decimal)", 0.0, 0.1, 0.02)
+    else:
+        rf = 0.02
 except:
     rf = 0.02
 st.write(f"Using risk-free rate: {rf:.4f}")
