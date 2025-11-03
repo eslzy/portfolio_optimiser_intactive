@@ -87,8 +87,7 @@ if "Maximize Sharpe Ratio" in opt_styles and "Optimize for Risk Preference" in o
 
 if include_rf:
     tickers.append("RISK_FREE")
-    mean_returns = mean_returns.append(pd.Series([rf], index=["RISK_FREE"]))
-    # Extend covariance matrix for risk-free asset
+    mean_returns = pd.concat([mean_returns, pd.Series([rf], index=["RISK_FREE"])])    # Extend covariance matrix for risk-free asset
     cov_rf_row = pd.Series(0, index=mean_returns.index)
     covariance = pd.concat([covariance, pd.DataFrame([cov_rf_row], index=["RISK_FREE"])])
     cov_rf_col = pd.Series(0, index=mean_returns.index)
