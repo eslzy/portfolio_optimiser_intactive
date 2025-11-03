@@ -50,7 +50,7 @@ try:
         rf = 0.02
 except:
     rf = 0.02
-st.write(f"Using risk-free rate: {rf:.4f}")
+st.write("Using risk-free rate:", rf)
 
 # --- Optimization selection ---
 opt_styles = st.multiselect("Select optimization methods:", ["Maximize Sharpe Ratio", "Optimize for Risk Preference"], default=["Maximize Sharpe Ratio"])
