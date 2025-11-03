@@ -112,7 +112,7 @@ if "Maximize Sharpe Ratio" in opt_styles and "Optimize for Risk Preference" in o
     st.write(weights_df)
     st.write(f"Expected Annual Return: {port_return:.2%}")
     st.write(f"Expected Annual Volatility: {port_vol:.2%}")
-    st.write(f"Sharpe Ratio: {sharpe:.2f}")
+    st.write("Sharpe Ratio: ", sharpe)
 
 elif "Maximize Sharpe Ratio" in opt_styles:
     # Just tangency portfolio (risky assets only)
