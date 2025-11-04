@@ -107,6 +107,7 @@ if "Maximize Sharpe Ratio" in opt_styles and "Optimize for Risk Preference" not 
     st.write("Expected Annual Return:", port_return)
     st.write("Annual Volatility (Risk):", port_vol)
     st.write("Sharpe Ratio:", sharpe)
+    st.write("Risk Free Rate:",rf)
 
     # Create and display a bar chart of weights
     weights_df = pd.DataFrame({'Ticker': tickers,'Weight': opt_weights})
