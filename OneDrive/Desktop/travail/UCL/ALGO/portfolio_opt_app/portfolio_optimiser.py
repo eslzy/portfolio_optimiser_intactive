@@ -97,12 +97,10 @@ if "Maximize Sharpe Ratio" in opt_styles and "Optimize for Risk Preference" not 
 
     #Optimize (Sharpe ratio)
     res = minimize(neg_sharpe, start, args=(mean_returns, covariance, rf), method='SLSQP', bounds=bounds,constraints=constraints)
-    if not res.success:
-        st.error(f"Optimization failed: {res.message}")
-    else:
-        opt_weights = res.x
-        port_return, port_vol = portfolio_perf(opt_weights, mean_returns, covariance)
-        sharpe = (port_return - rf) / port_vol if port_vol > 0 else np.nan
+
+    opt_weights = res.x
+    (port_return, port_vol) = portfolio_perf(opt_weights, mean_returns, covariance)
+    sharpe = (port_return - rf) / port_vol
 
     #results
     st.subheader("Optimal Tangency Portfolio (Max Sharpe Ratio)")
