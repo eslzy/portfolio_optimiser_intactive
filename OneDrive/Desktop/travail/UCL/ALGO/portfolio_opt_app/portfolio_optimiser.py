@@ -87,7 +87,6 @@ if allow_shorting:
 else:
     bounds = tuple((0, 1) for _ in range(num_assets))
 constraints = {'type': 'eq', 'fun': lambda w: np.sum(w) - 1}
-bounds = tuple((0, 1) for _ in range(num_assets))
 start = num_assets * [1.0 / num_assets]
 
 
