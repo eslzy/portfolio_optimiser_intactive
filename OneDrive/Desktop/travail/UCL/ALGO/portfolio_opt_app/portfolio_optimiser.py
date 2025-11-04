@@ -51,8 +51,10 @@ else:
 #option selection
 
 opt_styles = st.multiselect("Select optimization methods:", ["Maximize Sharpe Ratio", "Optimize for Risk Preference"], default=["Maximize Sharpe Ratio"])
-
-data = yf.download(st.session_state['tickers'], start=startdate, end=enddate)
+if not st.session_state['tickers'].len == 0:
+    data = yf.download(st.session_state['tickers'], start=startdate, end=enddate)
+else:
+    st.write("Enter stocks in your portfolio")
 close = data['Close'].copy()
 
 # Calculate log returns and annualized stats
@@ -124,7 +126,7 @@ elif "Optimize for Risk Preference" in opt_styles and "Maximize Sharpe Ratio" no
     def neg_return(weights, returns):
         return -np.dot(weights, returns)
     
-    target_risk = st.slider("Select target volatility (risk %):", min_value=0.01, max_value=0.50, value=0.15, step=0.01)
+    target_risk = st.slider("Select target volatility (risk %):", min_value=0.01, max_value=0.70, value=0.15, step=0.01)
     
     constraints = [{'type': 'eq', 'fun': lambda w: np.sum(w) - 1}, {'type': 'eq', 'fun': lambda w: portfolio_vol(w, covariance) - target_risk}] #to make sure the portfolio has the desirred volatility
     
