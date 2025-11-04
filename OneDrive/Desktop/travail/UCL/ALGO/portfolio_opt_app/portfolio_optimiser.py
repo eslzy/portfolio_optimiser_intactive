@@ -2,6 +2,7 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import yfinance as yf
+import datetime as dt
 from scipy.optimize import minimize
 
 st.title("Simple Portfolio Optimizer")
