@@ -92,10 +92,44 @@ else:
     bounds = tuple((0, 1) for _ in range(num_assets))
 start = num_assets * [1.0 / num_assets]
 
+#-------sharpe and risk pref opt (CML)-------------------------------------------------------------------------------------------------------------------------------------------------------
+if "Optimize for Risk Preference" in opt_styles and "Maximize Sharpe Ratio" in opt_styles:
+    
+    constraints = {'type': 'eq', 'fun': lambda w: np.sum(w) - 1}
+    res = minimize(neg_sharpe, start, args=(mean_returns, covariance, rf), method='SLSQP', bounds=bounds, constraints=constraints)
+    
+    opt_weights_tan = res.x         #here we calculate the tangency portfolio (same as teh max_sharpe one) we'll consider this portfolio as one asset
+    (port_return_tan, port_vol_tan) = portfolio_perf(opt_weights_tan, mean_returns, covariance)
+    
+    target_risk = st.slider("Select target volatility (risk %):", min_value=0.0, max_value=0.6, value=0.15, step=0.01)
+    
+    w_t = target_risk / port_vol_tan
+    w_rf = 1 - w_t
+    
+    port_return = rf*(1-w_t) + port_return_tan*w_t
+    port_vol = target_risk    #here we assume teh rf asset is truly risk free but close enough for us to say this 
+    sharpe = (port_return - rf) / port_vol
+    
+    final_weights = opt_weights_tan * w_t
+    
+    st.subheader("Capital Market Line Optimal Portfolio (Combined Risk-Free + Tangency Portfolio)")
+    st.write("Expected Annual Return:", port_return)
+    st.write("Target Volatility:", port_vol)
+    st.write("Sharpe Ratio:", sharpe)
+    st.write("Risk-Free Rate:", rf)
+    st.write("Weight in Tangency Portfolio:", w_t)
+    st.write("Weight in Risk-Free Asset:", w_rf)
 
+
+    weights_df = pd.DataFrame({
+        'Ticker': tickers,
+        'Weight (in total portfolio)': final_weights
+    })
+    st.bar_chart(weights_df.set_index('Ticker'))
+    st.dataframe(weights_df.style.format({"Weight (in total portfolio)": "{:.2%}"}))
+    
 #------max sharpe opt--------------------------------------------------------------------------------------------------------------------------------------------------------
-
-if "Maximize Sharpe Ratio" in opt_styles and "Optimize for Risk Preference" not in opt_styles:
+elif "Maximize Sharpe Ratio" in opt_styles and "Optimize for Risk Preference" not in opt_styles:
     
     #Optimize (Sharpe ratio)
     constraints = {'type': 'eq', 'fun': lambda w: np.sum(w) - 1} #in section bc we have diff constraints for other selections
