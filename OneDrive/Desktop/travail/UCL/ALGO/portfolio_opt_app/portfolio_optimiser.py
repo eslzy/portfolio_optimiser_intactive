@@ -83,30 +83,26 @@ def neg_sharpe(weights, returns, cov, rf):
     return -(port_return - rf) / port_vol
 
 #constraints
+if allow_shorting:
+    bounds = tuple((-1, 1) for _ in range(num_assets))
+else:
+    bounds = tuple((0, 1) for _ in range(num_assets))
 constraints = {'type': 'eq', 'fun': lambda w: np.sum(w) - 1}
 bounds = tuple((0, 1) for _ in range(num_assets))
-
-starting_guess = num_assets * [1.0 / num_assets]
+start = num_assets * [1.0 / num_assets]
 
 
 
 if "Maximize Sharpe Ratio" in opt_styles and "Optimize for Risk Preference" not in opt_styles:
-    
-    #constraints
-    if allow_shorting:
-        bounds = tuple((-1, 1) for _ in range(num_assets))
-    else:
-        bounds = tuple((0, 1) for _ in range(num_assets))
-    
-    constraints = {'type': 'eq', 'fun': lambda w: np.sum(w) - 1}
-    start = num_assets * [1.0 / num_assets]
 
     #Optimize (Sharpe ratio)
     res = minimize(neg_sharpe, start, args=(mean_returns, covariance, rf), method='SLSQP', bounds=bounds,constraints=constraints)
-
-    opt_weights = res.x
-    port_return, port_vol = portfolio_perf(opt_weights, mean_returns, covariance)
-    sharpe = (port_return - rf) / port_vol
+    if not res.success:
+        st.error(f"Optimization failed: {res.message}")
+    else:
+        opt_weights = res.x
+        port_return, port_vol = portfolio_perf(opt_weights, mean_returns, covariance)
+        sharpe = (port_return - rf) / port_vol if port_vol > 0 else np.nan
 
     #results
     st.subheader("Optimal Tangency Portfolio (Max Sharpe Ratio)")
