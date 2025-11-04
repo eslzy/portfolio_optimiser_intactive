@@ -47,8 +47,6 @@ elif region == "Custom rate":
 else:
     rf = 0.02
     
-st.write("risk free rate :", rf)
-
 
 
 #option selection
@@ -82,6 +80,8 @@ def neg_sharpe(weights, returns, cov, rf):
         return 1e10
     return -(port_return - rf) / port_vol
 
+allow_shorting = st.checkbox("Allow shorting", value=False)
+
 #constraints
 if allow_shorting:
     bounds = tuple((-1, 1) for _ in range(num_assets))
@@ -108,6 +108,7 @@ if "Maximize Sharpe Ratio" in opt_styles and "Optimize for Risk Preference" not 
     st.write("Annual Volatility (Risk):", port_vol)
     st.write("Sharpe Ratio:", sharpe)
     st.write("Risk Free Rate:",rf)
+    st.write("Sharpe Ratio:", sharpe)
 
     # Create and display a bar chart of weights
     weights_df = pd.DataFrame({'Ticker': tickers,'Weight': opt_weights})
