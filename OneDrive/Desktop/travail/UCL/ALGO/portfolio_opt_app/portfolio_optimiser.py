@@ -31,7 +31,6 @@ rem = st.selectbox("Remove a stock", [""] + st.session_state['tickers'])
 if st.button("Remove") and rem:
     st.session_state['tickers'].remove(rem)
 
-allow_shorting = st.checkbox("Allow shorting", value=False)
 
 #rfr selection
 region = st.selectbox("Select Risk-Free Rate Region", ["US", "Europe", "Custom rate"])
