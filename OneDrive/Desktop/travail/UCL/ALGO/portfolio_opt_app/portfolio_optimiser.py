@@ -51,10 +51,11 @@ else:
 #option selection
 
 opt_styles = st.multiselect("Select optimization methods:", ["Maximize Sharpe Ratio", "Optimize for Risk Preference"], default=["Maximize Sharpe Ratio"])
-if not st.session_state['tickers'].len == 0:
+if not len(st.session_state['tickers'])== 0:
     data = yf.download(st.session_state['tickers'], start=startdate, end=enddate)
 else:
     st.write("Enter stocks in your portfolio")
+    st.stop()
 close = data['Close'].copy()
 
 # Calculate log returns and annualized stats
