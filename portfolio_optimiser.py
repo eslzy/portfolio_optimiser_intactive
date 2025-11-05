@@ -22,7 +22,7 @@ with st.sidebar:
             st.warning("already in the portfolio.")
 
     enddate = dt.datetime.now()
-    years = st.number_input("years analyzed:", min_value=1, value=5) #its buggy af and usually returns a yfrate limit reached err when you select 5 years 
+    years = st.number_input("years analyzed:", min_value=1, value=1) #its buggy af and usually returns a yfrate limit reached err when you select 5 years 
     startdate = enddate - dt.timedelta(days=365 * years)
 
     st.write("Portfolio:")
