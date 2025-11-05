@@ -2,6 +2,7 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import yfinance as yf
+import matplotlib.pyplot as plt
 import datetime as dt
 from scipy.optimize import minimize
 
@@ -92,6 +93,14 @@ else:
     bounds = tuple((0, 1) for _ in range(num_assets))
 start = num_assets * [1.0 / num_assets]
 
+#needed to do this fro the graph or else it was too complicated
+port_vol_tan = None
+port_return_tan = None
+port_vol = None
+port_return = None
+
+
+
 #-------sharpe and risk pref opt (CML)-------------------------------------------------------------------------------------------------------------------------------------------------------
 if "Optimize for Risk Preference" in opt_styles and "Maximize Sharpe Ratio" in opt_styles:
     
@@ -123,7 +132,7 @@ if "Optimize for Risk Preference" in opt_styles and "Maximize Sharpe Ratio" in o
 
     
     st.bar_chart(weights_df.set_index('Ticker'))
-    st.dataframe(weights_df.style.format({"Weight (in total portfolio)": "{:.2%}"}))
+    st.dataframe(weights_df.style.format({"Weight": "{:.2%}"}))
 #------max sharpe opt--------------------------------------------------------------------------------------------------------------------------------------------------------
 elif "Maximize Sharpe Ratio" in opt_styles and "Optimize for Risk Preference" not in opt_styles:
     
@@ -184,10 +193,64 @@ elif "Optimize for Risk Preference" in opt_styles and "Maximize Sharpe Ratio" no
     
 #sometimes this is calculated with the utility fuction so maybe ill see if its better to do tah tinstead of max teh return under the volatility constraint
 
-#--------------------------------------------------------------------------------------------------------------------------------------------------------------
+#---------no selection case-----------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 else:
     st.write("Select optimisation type")
+    st.stop()
+
+#---------graph-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+def efficient_frontier(mean_returns, cov_matrix, rf, shorting=False, points=100):
+    num_assets = len(mean_returns)
+    results = np.zeros((3, points))
+    bounds = tuple((-1, 1) if shorting else (0, 1) for _ in range(num_assets))
+    weights_record = []
+    
+    for i, target_return in enumerate(np.linspace(mean_returns.min(), mean_returns.max(), points)):
+        constraints = (
+            {'type': 'eq', 'fun': lambda w: np.sum(w) - 1},
+            {'type': 'eq', 'fun': lambda w: np.dot(w, mean_returns) - target_return}
+        )
+        res = minimize(lambda w: np.sqrt(np.dot(w.T, np.dot(cov_matrix, w))), 
+                       num_assets*[1/num_assets], 
+                       method='SLSQP', bounds=bounds, constraints=constraints)
+        if res.success:
+            vol = np.sqrt(np.dot(res.x.T, np.dot(cov_matrix, res.x)))
+            results[0,i] = vol
+            results[1,i] = target_return
+            results[2,i] = (target_return - rf) / vol  # Sharpe
+            weights_record.append(res.x)
+        else:
+            results[:,i] = np.nan
+            weights_record.append(None)
+    return results, weights_record
 
 
+# ----------------ec calc/graph ----------------
+
+results, weights_record = efficient_frontier(mean_returns, covariance, rf, shorting=allow_shorting)
+vols, rets, sharpes = results
+
+fig, ax = plt.subplots(figsize=(8,5))
+
+#plot efficient frontier
+ax.plot(vols, rets, 'b--', label='Efficient Frontier')
+
+#Plot cml if both opt types 
+if port_vol_tan is not None and port_return_tan is not None:
+    ax.plot([0, port_vol_tan], [rf, port_return_tan], 'r-', label='Capital Market Line')
+
+#Plot points for portfolios
+if port_vol is not None and port_return is not None:
+    ax.scatter(port_vol, port_return, c='gold', marker='*', s=200, label='Your Portfolio')
+
+
+ax.set_title('Modern Portfolio Theory Graph')
+ax.set_xlabel('Portfolio Risk (Volatility)')
+ax.set_ylabel('Expected Return')
+ax.legend()
+ax.grid(True)
+
+st.pyplot(fig)
