@@ -8,27 +8,28 @@ from scipy.optimize import minimize
 st.title("Portfolio Optimizer")
 
 #stock inputs
-if 'tickers' not in st.session_state:
-    st.session_state['tickers'] = [] 
+with st.sidebar:
+    if 'tickers' not in st.session_state:
+        st.session_state['tickers'] = [] 
 
-new_ticker = st.text_input("Enter a ticker").upper()
-                                                            #st.session_state is super useful, it keeps teh inputed data and prevents it from being resetted everytime you select other options, first time using it, its pretty good
-if st.button("Add stock") and new_ticker:
-    if new_ticker not in st.session_state['tickers']:
-        st.session_state['tickers'].append(new_ticker)
-    else:
-        st.warning("already in the portfolio.")
+    new_ticker = st.text_input("Enter a ticker").upper()
+                                                                #st.session_state is super useful, it keeps teh inputed data and prevents it from being resetted everytime you select other options, first time using it, its pretty good
+    if st.button("Add stock") and new_ticker:
+        if new_ticker not in st.session_state['tickers']:
+            st.session_state['tickers'].append(new_ticker)
+        else:
+            st.warning("already in the portfolio.")
 
-enddate = dt.datetime.now()
-years = st.number_input("years analyzed:", min_value=1, value=5) #its buggy af and usually returns a yfrate limit reached err when you select 5 years 
-startdate = enddate - dt.timedelta(days=365 * years)
+    enddate = dt.datetime.now()
+    years = st.number_input("years analyzed:", min_value=1, value=5) #its buggy af and usually returns a yfrate limit reached err when you select 5 years 
+    startdate = enddate - dt.timedelta(days=365 * years)
 
-st.write("Portfolio:")
-st.write(st.session_state['tickers'])
+    st.write("Portfolio:")
+    st.write(st.session_state['tickers'])
 
-rem = st.selectbox("Remove a stock from portfolio", [""] + st.session_state['tickers'])
-if st.button("Remove") and rem:
-    st.session_state['tickers'].remove(rem)
+    rem = st.selectbox("Remove a stock from portfolio", [""] + st.session_state['tickers'])
+    if st.button("Remove") and rem:
+        st.session_state['tickers'].remove(rem)
 
 
 #rfr selection
