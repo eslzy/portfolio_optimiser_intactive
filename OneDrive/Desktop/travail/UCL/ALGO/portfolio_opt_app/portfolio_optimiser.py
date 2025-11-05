@@ -244,11 +244,11 @@ if port_vol_tan is not None and port_return_tan is not None:
 
 #Plot points for portfolios
 if port_vol is not None and port_return is not None:
-    ax.scatter(port_vol, port_return, c='gold', marker='*', s=200, label='Your Portfolio')
+    ax.scatter(port_vol, port_return, c='gold', marker='.', s=200, label='Your Portfolio')
 
 
 ax.set_title('Modern Portfolio Theory Graph')
-ax.set_xlabel('Portfolio Risk (Volatility)')
+ax.set_xlabel('Portfolio Volatility')
 ax.set_ylabel('Expected Return')
 ax.legend()
 ax.grid(True)
