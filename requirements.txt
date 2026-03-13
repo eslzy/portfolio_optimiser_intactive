@@ -5,4 +5,4 @@ numpy
 matplotlib
 scipy
 datetime
-sklearn
+scikit-learn
