@@ -208,18 +208,20 @@ st.pyplot(fig)
 
 # ---------- Efficient Frontier & CAL (clean) ----------
 
-# Generate frontier points by varying target returns
-target_returns = np.linspace(min(mean_returns), max(mean_returns), 100)
+# Target returns from min achievable to max achievable
+ret_min = min(mean_returns.values)
+ret_max = max(mean_returns.values)
+target_returns = np.linspace(ret_min, ret_max, 100)
+
 frontier_vol = []
 
 for r_target in target_returns:
-    # minimize volatility for a given target return
     cons = (
-        {"type": "eq", "fun": lambda w: np.sum(w) - 1},
-        {"type": "eq", "fun": lambda w: np.dot(w, mean_returns.values) - r_target}
+        {"type": "eq", "fun": lambda w: np.sum(w) - 1},  # sum of weights = 1
+        {"type": "eq", "fun": lambda w: np.dot(w, mean_returns.values) - r_target}  # target return
     )
     res = minimize(
-        lambda w: np.sqrt(np.dot(w.T, np.dot(covariance, w))),
+        lambda w: np.sqrt(np.dot(w.T, np.dot(covariance, w))),  # minimize volatility
         start,
         method="SLSQP",
         bounds=bounds,
@@ -230,25 +232,25 @@ for r_target in target_returns:
     else:
         frontier_vol.append(np.nan)
 
-# Plot
-fig2, ax2 = plt.subplots()
+# ---------- Plot ----------
+fig, ax = plt.subplots()
 
-# Efficient frontier line
-ax2.plot(frontier_vol, target_returns, color="blue", lw=2, label="Efficient Frontier")
+# Efficient Frontier line
+ax.plot(frontier_vol, target_returns, color="blue", lw=2, label="Efficient Frontier")
 
 # Tangency portfolio
-ax2.scatter(vol_tan, ret_tan, color="orange", s=120, label="Tangency Portfolio")
+ax.scatter(vol_tan, ret_tan, color="orange", s=120, label="Tangency Portfolio")
 
-# Your chosen portfolio
-ax2.scatter(opt_vol, opt_return, color="red", s=120, label="Optimal Portfolio")
+# Optimal portfolio
+ax.scatter(opt_vol, opt_return, color="red", s=120, label="Optimal Portfolio")
 
-# Capital Allocation Line
-x = np.linspace(0, opt_vol*1.2, 100)
-cal = rf + (ret_tan - rf) / vol_tan * x
-ax2.plot(x, cal, linestyle="--", color="black", label="Capital Allocation Line")
+# Capital Allocation Line (from rf through tangency)
+x = np.linspace(0, max(frontier_vol)*1.5, 100)
+cal = rf + (ret_tan - rf)/vol_tan * x
+ax.plot(x, cal, linestyle="--", color="black", label="Capital Allocation Line")
 
-ax2.set_xlabel("Volatility")
-ax2.set_ylabel("Expected Return")
-ax2.set_title("Efficient Frontier")
-ax2.legend()
-st.pyplot(fig2)
+ax.set_xlabel("Volatility")
+ax.set_ylabel("Expected Return")
+ax.set_title("Efficient Frontier + CAL")
+ax.legend()
+st.pyplot(fig)
