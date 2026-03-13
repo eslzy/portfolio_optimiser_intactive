@@ -206,53 +206,53 @@ ax.set_ylabel("Weight")
 st.pyplot(fig)
 
 
-# ---------- Efficient Frontier & CAL (clean) ----------
-
-def simulate_portfolios(returns, cov, num_portfolios=5000, allow_shorting=False):
+def efficient_frontier(returns, cov, points=100, allow_shorting=False):
     num_assets = len(returns)
-    results = np.zeros((3, num_portfolios))
-    weights_record = []
+    results = []
+    
+    # Target returns for frontier
+    target_returns = np.linspace(min(returns), max(returns)*1.5, points)
+    
+    bounds = [(-1,1)]*num_assets if allow_shorting else [(0,1)]*num_assets
+    constraints_base = [{"type": "eq", "fun": lambda w: np.sum(w) - 1}]
+    
+    for r_target in target_returns:
+        # Constraint: portfolio return = r_target
+        constraints = constraints_base + [{"type": "eq", "fun": lambda w, r_target=r_target: np.dot(w, returns) - r_target}]
+        res = minimize(lambda w: np.dot(w, np.dot(cov, w)),  # Minimize variance
+                       num_assets*[1/num_assets],
+                       method="SLSQP",
+                       bounds=bounds,
+                       constraints=constraints)
+        if res.success:
+            vol = np.sqrt(np.dot(res.x, np.dot(cov, res.x)))
+            results.append((vol, r_target))
+    
+    vols, rets = zip(*results)
+    return np.array(vols), np.array(rets)
 
-    for i in range(num_portfolios):
-        if allow_shorting:
-            weights = np.random.uniform(-1, 1, num_assets)
-        else:
-            weights = np.random.random(num_assets)
-        weights /= np.sum(weights)
-        weights_record.append(weights)
-
-        port_ret, port_vol = portfolio_perf(weights, returns, cov)
-        sharpe = (port_ret - rf) / port_vol
-        results[0,i] = port_vol
-        results[1,i] = port_ret
-        results[2,i] = sharpe
-
-    return results, weights_record
-
-results, weights_record = simulate_portfolios(mean_returns.values, covariance, allow_shorting=allow_shorting)
-
-vols = results[0]
-rets = results[1]
-sharpes = results[2]
+frontier_vol, frontier_ret = efficient_frontier(mean_returns.values, covariance, allow_shorting=allow_shorting)
 
 # ---------- Plot ----------
 fig, ax = plt.subplots(figsize=(10,6))
-sc = ax.scatter(vols, rets, c=sharpes, cmap='viridis', alpha=0.6)
-plt.colorbar(sc, label='Sharpe Ratio')
+
+# Efficient frontier curve
+ax.plot(frontier_vol, frontier_ret, 'g-', linewidth=3, label='Efficient Frontier')
 
 # Tangency Portfolio
 ax.scatter(vol_tan, ret_tan, marker='*', color='r', s=300, label='Tangency Portfolio')
 
-# Our Optimised Portfolio
+# Your Optimised Portfolio
 ax.scatter(opt_vol, opt_return, marker='D', color='b', s=200, label='Our Portfolio')
 
-# CAL
-cal_x = np.linspace(0, max(vols)*1.2, 100)
+# CAL (Capital Allocation Line)
+cal_x = np.linspace(0, max(frontier_vol)*1.2, 100)
 cal_y = rf + (ret_tan - rf)/vol_tan * cal_x
 ax.plot(cal_x, cal_y, color='r', linestyle='--', label='Capital Allocation Line')
 
 ax.set_title('Efficient Frontier with CAL')
-ax.set_xlabel('Volatility')
+ax.set_xlabel('Volatility (Std Dev)')
 ax.set_ylabel('Expected Return')
 ax.legend()
+ax.grid(True)
 st.pyplot(fig)
