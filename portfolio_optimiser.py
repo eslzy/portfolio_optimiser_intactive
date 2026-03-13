@@ -34,8 +34,6 @@ if st.button("Remove") and rem:
 st.write("Portfolio:", st.session_state["tickers"])
 
 
-allow_shorting = st.checkbox("Allow shorting")
-
 
 # ---------- Risk-free rate ----------
 def get_rf_rate(ticker):
@@ -64,14 +62,11 @@ else:
 
 st.write(f"Using risk-free rate: {rf:.4f}")
 
-
 # ---------- Optimisation style ----------
-opt_style = st.radio(
-    "Optimisation objective",
-    ("Maximize Sharpe Ratio",
-     "Risk Preference",
-     "Both (Capital Allocation Line)")
+opt_style = st.radio("Optimisation objective",("Maximize Sharpe Ratio","Risk Preference","Both (Capital Allocation Line)")
 )
+
+allow_shorting = st.checkbox("Allow shorting")
 
 risk_aversion = None
 if opt_style in ["Risk Preference", "Both (Capital Allocation Line)"]:
@@ -211,50 +206,49 @@ ax.set_ylabel("Weight")
 st.pyplot(fig)
 
 
-# ---------- Efficient frontier ----------
-num_ports = 4000
-ret_arr = np.zeros(num_ports)
-vol_arr = np.zeros(num_ports)
+# ---------- Efficient Frontier & CAL (clean) ----------
 
-for i in range(num_ports):
+# Generate frontier points by varying target returns
+target_returns = np.linspace(min(mean_returns), max(mean_returns), 100)
+frontier_vol = []
 
-    w = np.random.random(num_stocks)
-    w /= np.sum(w)
+for r_target in target_returns:
+    # minimize volatility for a given target return
+    cons = (
+        {"type": "eq", "fun": lambda w: np.sum(w) - 1},
+        {"type": "eq", "fun": lambda w: np.dot(w, mean_returns.values) - r_target}
+    )
+    res = minimize(
+        lambda w: np.sqrt(np.dot(w.T, np.dot(covariance, w))),
+        start,
+        method="SLSQP",
+        bounds=bounds,
+        constraints=cons
+    )
+    if res.success:
+        frontier_vol.append(res.fun)
+    else:
+        frontier_vol.append(np.nan)
 
-    ret_arr[i] = np.sum(mean_returns.values * w)
-    vol_arr[i] = np.sqrt(np.dot(w.T, np.dot(covariance, w)))
-
-
-# ---------- Frontier plot ----------
+# Plot
 fig2, ax2 = plt.subplots()
 
-ax2.scatter(
-    vol_arr,
-    ret_arr,
-    c=(ret_arr - rf) / vol_arr,
-    cmap="viridis",
-    alpha=0.5
-)
+# Efficient frontier line
+ax2.plot(frontier_vol, target_returns, color="blue", lw=2, label="Efficient Frontier")
 
-ax2.scatter(
-    opt_vol,
-    opt_return,
-    color="red",
-    s=120,
-    label="Optimal Portfolio"
-)
-
-# Capital Allocation Line
-x = np.linspace(0, max(vol_arr), 100)
-cal = rf + (ret_tan - rf) / vol_tan * x
-
-ax2.plot(x, cal, linestyle="--", color="black", label="Capital Allocation Line")
-
+# Tangency portfolio
 ax2.scatter(vol_tan, ret_tan, color="orange", s=120, label="Tangency Portfolio")
 
+# Your chosen portfolio
+ax2.scatter(opt_vol, opt_return, color="red", s=120, label="Optimal Portfolio")
+
+# Capital Allocation Line
+x = np.linspace(0, opt_vol*1.2, 100)
+cal = rf + (ret_tan - rf) / vol_tan * x
+ax2.plot(x, cal, linestyle="--", color="black", label="Capital Allocation Line")
+
 ax2.set_xlabel("Volatility")
-ax2.set_ylabel("Return")
+ax2.set_ylabel("Expected Return")
 ax2.set_title("Efficient Frontier")
 ax2.legend()
-
 st.pyplot(fig2)
