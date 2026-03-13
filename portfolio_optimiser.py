@@ -233,28 +233,25 @@ def efficient_frontier(returns, cov, points=100, allow_shorting=False):
 
 frontier_vol, frontier_ret = efficient_frontier(mean_returns.values, covariance, allow_shorting=allow_shorting)
 
-# -------- Plot ---------
 # ---------- Plot ----------
 fig, ax = plt.subplots(figsize=(10,6))
 
-# Efficient frontier curve in dark blue
+# Efficient frontier
 ax.plot(frontier_vol, frontier_ret, color='#0b3d91', linewidth=3, label='Efficient Frontier')
 
 # Tangency Portfolio
-ax.scatter(vol_tan, ret_tan, marker='*', color='r', s=150, label='Tangency Portfolio')  # smaller marker
+ax.scatter(vol_tan, ret_tan, marker='*', color='r', s=150, label='Tangency Portfolio')
 
-# Your Optimised Portfolio
-ax.scatter(opt_vol, opt_return, marker='D', color='b', s=100, label='Our Portfolio')   # smaller marker
+# optimised Portfolio
+ax.scatter(opt_vol, opt_return, marker='D', color='b', s=100, label='Our Portfolio')
 
-# CAL (Capital Allocation Line)
+# CAL
 cal_x = np.linspace(0, max(frontier_vol)*1.2, 100)
 cal_y = rf + (ret_tan - rf)/vol_tan * cal_x
 ax.plot(cal_x, cal_y, color='r', linestyle='--', linewidth=2, label='Capital Allocation Line')
 
 # Legend with smaller markers
-legend = ax.legend(frameon=True, fontsize=10)
-for handle in legend.legendHandles:
-    handle.set_sizes([50])  # shrink scatter markers in legend
+ax.legend(frameon=True, fontsize=10, markerscale=0.7)
 
 ax.set_title('Efficient Frontier with CAL')
 ax.set_xlabel('Volatility (Std Dev)')
