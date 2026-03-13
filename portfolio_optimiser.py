@@ -143,7 +143,7 @@ starting_point = num_stocks * [1 / num_stocks]
 if opt_style == "Maximize Sharpe Ratio":
     opt_result = minimize(sharpe_opt, starting_point, args=(mean_an_returns.values, covariance, rf),method='SLSQP', bounds=bounds, constraints=constraints)
 else:
-    opt_result = minimize(utility_opt, starting_point, args=(mean_an_returns.values, covariance.values, risk_aversion),method='SLSQP', bounds=bounds, constraints=constraints)
+    opt_result = minimize(utility_opt, starting_point, args=(mean_an_returns.values, covariance, risk_aversion),method='SLSQP', bounds=bounds, constraints=constraints)
 # so the minimize f() takes in a function which it will minimize
 #then it takes a startting point, it will go from there and then itteratively optimize, so this is the variables it has to optimize
 #then it takes the rest of teh variables for the function which are fixed
@@ -153,7 +153,7 @@ else:
 
 
 optimal_weights = opt_result.x  #the minn f() returns an object, the x attribute is the opt variable
-opt_return, opt_volatility = portfolio_perf(optimal_weights, mean_an_returns.values, covariance.values)
+opt_return, opt_volatility = portfolio_perf(optimal_weights, mean_an_returns.values, covariance)
 
 
 
