@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 from sklearn.covariance import LedoitWolf
 
-st.title("Portfolio Optimiser")
+st.title("Portfolio Otimiser")
 
 
 enddate = dt.datetime.now()
