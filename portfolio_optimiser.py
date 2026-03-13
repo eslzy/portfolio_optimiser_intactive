@@ -141,7 +141,7 @@ starting_point = num_stocks * [1 / num_stocks]
 
 #this is the min formula its complicated
 if opt_style == "Maximize Sharpe Ratio":
-    opt_result = minimize(sharpe_opt, starting_point, args=(mean_an_returns.values, covariance.values, rf),method='SLSQP', bounds=bounds, constraints=constraints)
+    opt_result = minimize(sharpe_opt, starting_point, args=(mean_an_returns.values, covariance, rf),method='SLSQP', bounds=bounds, constraints=constraints)
 else:
     opt_result = minimize(utility_opt, starting_point, args=(mean_an_returns.values, covariance.values, risk_aversion),method='SLSQP', bounds=bounds, constraints=constraints)
 # so the minimize f() takes in a function which it will minimize
