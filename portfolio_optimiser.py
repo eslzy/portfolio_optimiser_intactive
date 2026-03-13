@@ -208,49 +208,51 @@ st.pyplot(fig)
 
 # ---------- Efficient Frontier & CAL (clean) ----------
 
-# Target returns from min achievable to max achievable
-ret_min = min(mean_returns.values)
-ret_max = max(mean_returns.values)
-target_returns = np.linspace(ret_min, ret_max, 100)
+def simulate_portfolios(returns, cov, num_portfolios=5000, allow_shorting=False):
+    num_assets = len(returns)
+    results = np.zeros((3, num_portfolios))
+    weights_record = []
 
-frontier_vol = []
+    for i in range(num_portfolios):
+        if allow_shorting:
+            weights = np.random.uniform(-1, 1, num_assets)
+        else:
+            weights = np.random.random(num_assets)
+        weights /= np.sum(weights)
+        weights_record.append(weights)
 
-for r_target in target_returns:
-    cons = (
-        {"type": "eq", "fun": lambda w: np.sum(w) - 1},  # sum of weights = 1
-        {"type": "eq", "fun": lambda w: np.dot(w, mean_returns.values) - r_target}  # target return
-    )
-    res = minimize(
-        lambda w: np.sqrt(np.dot(w.T, np.dot(covariance, w))),  # minimize volatility
-        start,
-        method="SLSQP",
-        bounds=bounds,
-        constraints=cons
-    )
-    if res.success:
-        frontier_vol.append(res.fun)
-    else:
-        frontier_vol.append(np.nan)
+        port_ret, port_vol = portfolio_perf(weights, returns, cov)
+        sharpe = (port_ret - rf) / port_vol
+        results[0,i] = port_vol
+        results[1,i] = port_ret
+        results[2,i] = sharpe
+
+    return results, weights_record
+
+results, weights_record = simulate_portfolios(mean_returns.values, covariance, allow_shorting=allow_shorting)
+
+vols = results[0]
+rets = results[1]
+sharpes = results[2]
 
 # ---------- Plot ----------
-fig, ax = plt.subplots()
+fig, ax = plt.subplots(figsize=(10,6))
+sc = ax.scatter(vols, rets, c=sharpes, cmap='viridis', alpha=0.6)
+plt.colorbar(sc, label='Sharpe Ratio')
 
-# Efficient Frontier line
-ax.plot(frontier_vol, target_returns, color="blue", lw=2, label="Efficient Frontier")
+# Tangency Portfolio
+ax.scatter(vol_tan, ret_tan, marker='*', color='r', s=300, label='Tangency Portfolio')
 
-# Tangency portfolio
-ax.scatter(vol_tan, ret_tan, color="orange", s=120, label="Tangency Portfolio")
+# Our Optimised Portfolio
+ax.scatter(opt_vol, opt_return, marker='D', color='b', s=200, label='Our Portfolio')
 
-# Optimal portfolio
-ax.scatter(opt_vol, opt_return, color="red", s=120, label="Optimal Portfolio")
+# CAL
+cal_x = np.linspace(0, max(vols)*1.2, 100)
+cal_y = rf + (ret_tan - rf)/vol_tan * cal_x
+ax.plot(cal_x, cal_y, color='r', linestyle='--', label='Capital Allocation Line')
 
-# Capital Allocation Line (from rf through tangency)
-x = np.linspace(0, max(frontier_vol)*1.5, 100)
-cal = rf + (ret_tan - rf)/vol_tan * x
-ax.plot(x, cal, linestyle="--", color="black", label="Capital Allocation Line")
-
-ax.set_xlabel("Volatility")
-ax.set_ylabel("Expected Return")
-ax.set_title("Efficient Frontier + CAL")
+ax.set_title('Efficient Frontier with CAL')
+ax.set_xlabel('Volatility')
+ax.set_ylabel('Expected Return')
 ax.legend()
 st.pyplot(fig)
