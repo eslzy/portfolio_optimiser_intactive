@@ -70,11 +70,11 @@ else:
 st.write(f"Using risk-free rate: {rf:.4f}")
 
 #different optimisation types, idk if this is a good idea , complicates it a lot 
-opt_style = st.radio("Select optimization opt_style:", ("Maximize Sharpe Ratio", "Optimize for Risk Preference"))
+opt_style = st.radio("Select optimization opt_style:", ("Maximize Sharpe Ratio", "Optimize for Risk Preference","Both Sharpe and Risk Preference"))
 
 risk_aversion = 0.0
-if opt_style == "Optimize for Risk Preference":
-    risk_aversion = st.slider("Risk aversion", 0.0, 10.0, 3.0)
+if opt_style in ["Optimize for Risk Preference", "Both Sharpe and Risk Preference"]:
+    risk_aversion = st.slider("Risk aversion", 0.1, 10.0, 3.0)
 
 
 if len(st.session_state['tickers']) == 0:
@@ -141,9 +141,52 @@ starting_point = num_stocks * [1 / num_stocks]
 
 #this is the min formula its complicated
 if opt_style == "Maximize Sharpe Ratio":
-    opt_result = minimize(sharpe_opt, starting_point, args=(mean_an_returns.values, covariance, rf),method='SLSQP', bounds=bounds, constraints=constraints)
-else:
-    opt_result = minimize(utility_opt, starting_point, args=(mean_an_returns.values, covariance, risk_aversion),method='SLSQP', bounds=bounds, constraints=constraints)
+
+    opt_result = minimize(
+        sharpe_opt,
+        starting_point,
+        args=(mean_an_returns.values, covariance, rf),
+        method='SLSQP',
+        bounds=bounds,
+        constraints=constraints
+    )
+
+elif opt_style == "Optimize for Risk Preference":
+
+    opt_result = minimize(
+        utility_opt,
+        starting_point,
+        args=(mean_an_returns.values, covariance, risk_aversion),
+        method='SLSQP',
+        bounds=bounds,
+        constraints=constraints
+    )
+
+elif opt_style == "Both Sharpe and Risk Preference":
+
+    # Step 1: find tangency portfolio (max Sharpe)
+    tangency = minimize(
+        sharpe_opt,
+        starting_point,
+        args=(mean_an_returns.values, covariance, rf),
+        method='SLSQP',
+        bounds=bounds,
+        constraints=constraints
+    )
+
+w_tan = tangency.x
+
+ret_tan, vol_tan = portfolio_perf(w_tan, mean_an_returns.values, covariance)
+
+weight_tan = (ret_tan - rf) / (risk_aversion * (vol_tan ** 2))
+
+weight_rf = 1 - weight_tan
+
+optimal_weights = weight_tan * w_tan
+
+opt_return = weight_rf * rf + weight_tan * ret_tan
+opt_volatility = abs(weight_tan) * vol_tan
+
 # so the minimize f() takes in a function which it will minimize
 #then it takes a startting point, it will go from there and then itteratively optimize, so this is the variables it has to optimize
 #then it takes the rest of teh variables for the function which are fixed
@@ -152,8 +195,9 @@ else:
 
 
 
-optimal_weights = opt_result.x  #the minn f() returns an object, the x attribute is the opt variable
-opt_return, opt_volatility = portfolio_perf(optimal_weights, mean_an_returns.values, covariance)
+if opt_style != "Both Sharpe and Risk Preference":
+    optimal_weights = opt_result.x
+    opt_return, opt_volatility = portfolio_perf(optimal_weights, mean_an_returns.values, covariance)
 
 
 
@@ -177,3 +221,16 @@ ax.set_title("optimal portfolio Weights")
 ax.set_ylabel("Weight")
 st.pyplot(fig)
 
+num_ports = 2000
+
+ret_arr = np.zeros(num_ports)
+vol_arr = np.zeros(num_ports)
+
+for i in range(num_ports):
+
+    weights = np.random.random(num_stocks)
+    weights /= np.sum(weights)
+
+    ret_arr[i] = np.sum(mean_an_returns.values * weights)
+
+    vol_arr[i] = np.sqrt(np.dot(weights.T, np.dot(covariance, weights)))
