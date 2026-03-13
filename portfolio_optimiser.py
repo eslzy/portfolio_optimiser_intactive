@@ -198,14 +198,14 @@ if opt_style == "Maximize Sharpe Ratio":
     st.write(f"Sharpe Ratio: {sharpe:.2f}")
 
 
-# ---------- Bar chart ----------
+# ---------- Bar chart --------
 fig, ax = plt.subplots()
 weights_df["Weight"].plot(kind="bar", ax=ax)
 ax.set_title("Portfolio Weights")
 ax.set_ylabel("Weight")
 st.pyplot(fig)
 
-
+# ------- Efficient frontier ----------
 def efficient_frontier(returns, cov, points=100, allow_shorting=False):
     num_assets = len(returns)
     results = []
@@ -233,26 +233,31 @@ def efficient_frontier(returns, cov, points=100, allow_shorting=False):
 
 frontier_vol, frontier_ret = efficient_frontier(mean_returns.values, covariance, allow_shorting=allow_shorting)
 
-# ---------- Plot ----------
+# -------- Plot ---------
 fig, ax = plt.subplots(figsize=(10,6))
 
-# Efficient frontier curve
-ax.plot(frontier_vol, frontier_ret, 'g-', linewidth=3, label='Efficient Frontier')
+# Efficient frontier
+ax.plot(frontier_vol, frontier_ret, color='#0b3d91', linewidth=3, label='Efficient Frontier')
 
-# Tangency Portfolio
-ax.scatter(vol_tan, ret_tan, marker='*', color='r', s=300, label='Tangency Portfolio')
-
-# Your Optimised Portfolio
-ax.scatter(opt_vol, opt_return, marker='D', color='b', s=200, label='Our Portfolio')
-
-# CAL (Capital Allocation Line)
+# CAL
 cal_x = np.linspace(0, max(frontier_vol)*1.2, 100)
 cal_y = rf + (ret_tan - rf)/vol_tan * cal_x
-ax.plot(cal_x, cal_y, color='r', linestyle='--', label='Capital Allocation Line')
+ax.plot(cal_x, cal_y, color='r', linestyle='--', linewidth=2, label='Capital Allocation Line')
+
+# Tangency portfolio
+ax.scatter(vol_tan, ret_tan, marker='*', color='r', s=150, label='Tangency Portfolio')
+
+#Optimised Portfolio
+ax.scatter(opt_vol, opt_return, marker='D', color='b', s=100, label='Our Portfolio')
+
+
+
+legend = ax.legend(frameon=True, fontsize=10)
+for handle in legend.legendHandles:
+    handle.set_sizes([50])  # shrink scatter markers in legend
 
 ax.set_title('Efficient Frontier with CAL')
 ax.set_xlabel('Volatility (Std Dev)')
 ax.set_ylabel('Expected Return')
-ax.legend()
 ax.grid(True)
 st.pyplot(fig)
