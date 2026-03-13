@@ -212,7 +212,7 @@ st.pyplot(fig)
 
 
 # ---------- Efficient frontier ----------
-num_ports = 2000
+num_ports = 4000
 ret_arr = np.zeros(num_ports)
 vol_arr = np.zeros(num_ports)
 
