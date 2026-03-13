@@ -42,17 +42,27 @@ region = st.selectbox("Select Risk-Free Rate Region", ["US", "Belgium", "Europe"
 
 #if it doesnt work well theres a plugin on github i foudn that facilitates yfinance rf tickers
 #i saw a bunch of diff tickers to use so idk if theyre the right ones, will confirm later but its unclear so far 
+def get_rf_rate(ticker):
+    try:
+        rf_data = yf.download(ticker, period="5d", progress=False)
+        if not rf_data.empty and "Close" in rf_data.columns:
+            return float(rf_data["Close"].iloc[-1]) / 100
+    except:
+        pass
+    return 0.02
+    
 if region == "US":
-    rf_data = yf.download("^IRX", period="1d")
-    rf = rf_data['Close'][-1] / 100
+    rf = get_rf_rate("^IRX")
+
 elif region == "Belgium":
-    rf_data = yf.download("BELG_TICKER", period="1d") #didnt find the be ticker yet ill find later 
-    rf = rf_data['Close'][-1] / 100
+    rf = 0.02   #until i find better
+
 elif region == "Europe":
-    rf_data = yf.download("^ITX", period="1d")
-    rf = rf_data['Close'][-1] / 100
+    rf = get_rf_rate("^TNX")
+
 elif region == "Custom rate":
-    rf = st.number_input("Enter custom risk-free rate", placeholder=0.02) #might have to add a placeholder
+    rf = st.number_input("Enter custom risk-free rate", value=0.02)
+
 else:
     rf = 0.02
 # idek if its worth having a region selection, idk how relevant it'll be in this context and idk how to handle multi currency portfolios
