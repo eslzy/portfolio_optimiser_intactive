@@ -1,236 +1,260 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-import datetime as dt
 import numpy as np
+import datetime as dt
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 from sklearn.covariance import LedoitWolf
 
-st.title("Portfolio Otimiser")
+
+st.title("Portfolio Optimiser")
 
 
+# ---------- Time period ----------
 enddate = dt.datetime.now()
-years = st.number_input("years analyzed:", min_value=1, value=5)
+years = st.number_input("Years analysed", min_value=1, value=5)
 startdate = enddate - dt.timedelta(days=365 * years)
 
 
-#this is how well handle the portfolio creation, so we create a session state so that it doesnt clear everytime we change smth
-if 'tickers' not in st.session_state:
-    st.session_state['tickers'] = []
+# ---------- Portfolio builder ----------
+if "tickers" not in st.session_state:
+    st.session_state["tickers"] = []
 
-new_ticker = st.text_input("Enter a ticker").upper()
+new_ticker = st.text_input("Add ticker").upper()
 
 if st.button("Add stock") and new_ticker:
-    if new_ticker not in st.session_state['tickers']:
-        st.session_state['tickers'].append(new_ticker)
-    else:
-        st.warning(f"{new_ticker} is already in the portfolio.")
+    if new_ticker not in st.session_state["tickers"]:
+        st.session_state["tickers"].append(new_ticker)
 
-st.write("Portfolio:", st.session_state['tickers'])
-
-
-rem = st.selectbox("Remove a stock", [""] + st.session_state['tickers'])
+rem = st.selectbox("Remove ticker", [""] + st.session_state["tickers"])
 if st.button("Remove") and rem:
-    st.session_state['tickers'].remove(rem)
+    st.session_state["tickers"].remove(rem)
 
-allow_shorting = st.checkbox("Allow shorting", value=False)
+st.write("Portfolio:", st.session_state["tickers"])
 
 
-#this is where they can select a risk free rate depending on region, i might add more, default set as 2%
-region = st.selectbox("Select Risk-Free Rate Region", ["US", "Belgium", "Europe", "Custom rate"])
+allow_shorting = st.checkbox("Allow shorting")
 
-#if it doesnt work well theres a plugin on github i foudn that facilitates yfinance rf tickers
-#i saw a bunch of diff tickers to use so idk if theyre the right ones, will confirm later but its unclear so far 
+
+# ---------- Risk-free rate ----------
 def get_rf_rate(ticker):
     try:
         rf_data = yf.download(ticker, period="5d", progress=False)
-        if not rf_data.empty and "Close" in rf_data.columns:
+        if not rf_data.empty:
             return float(rf_data["Close"].iloc[-1]) / 100
     except:
         pass
     return 0.02
-    
+
+
+region = st.selectbox(
+    "Risk-free rate region",
+    ["US", "Europe", "Custom"]
+)
+
 if region == "US":
     rf = get_rf_rate("^IRX")
-
-elif region == "Belgium":
-    rf = 0.02   #until i find better
-
 elif region == "Europe":
     rf = get_rf_rate("^TNX")
-
-elif region == "Custom rate":
-    rf = st.number_input("Enter custom risk-free rate", value=0.02)
-
+elif region == "Custom":
+    rf = st.number_input("Custom risk-free rate", value=0.02)
 else:
     rf = 0.02
-# idek if its worth having a region selection, idk how relevant it'll be in this context and idk how to handle multi currency portfolios
 
 st.write(f"Using risk-free rate: {rf:.4f}")
 
-#different optimisation types, idk if this is a good idea , complicates it a lot 
-opt_style = st.radio("Select optimization opt_style:", ("Maximize Sharpe Ratio", "Optimize for Risk Preference","Both Sharpe and Risk Preference"))
 
-risk_aversion = 0.0
-if opt_style in ["Optimize for Risk Preference", "Both Sharpe and Risk Preference"]:
+# ---------- Optimisation style ----------
+opt_style = st.radio(
+    "Optimisation objective",
+    ("Maximize Sharpe Ratio",
+     "Risk Preference",
+     "Both (Capital Allocation Line)")
+)
+
+risk_aversion = None
+if opt_style in ["Risk Preference", "Both (Capital Allocation Line)"]:
     risk_aversion = st.slider("Risk aversion", 0.1, 10.0, 3.0)
 
 
-if len(st.session_state['tickers']) == 0:
+if len(st.session_state["tickers"]) == 0:
     st.warning("Portfolio is empty")
     st.stop()
 
-data = yf.download(st.session_state['tickers'], start=startdate, end=enddate)
-close = data['Close'].copy()
 
-#log returns and cov stuff, alr anualised 
+# ---------- Download price data ----------
+data = yf.download(
+    st.session_state["tickers"],
+    start=startdate,
+    end=enddate,
+    progress=False
+)
+
+close = data["Close"]
+
+
+# ---------- Returns ----------
 log_returns = np.log(close / close.shift(1)).dropna()
-#covariance = log_returns.cov() * 252 
-mean_an_returns = log_returns.mean() * 252
-#shrinkage
+mean_returns = log_returns.mean() * 252
+
+
+# ---------- Covariance (Ledoit-Wolf) ----------
 lw = LedoitWolf()
 lw.fit(log_returns)
+
 covariance = lw.covariance_ * 252
 
-#this part is annoying, it includes or not the rf rate depending on the selected optimisation type
-#had to use some help to clean this up bc it just looked super messy
-tickers = st.session_state['tickers'].copy()
 
-if opt_style == "Maximize Sharpe Ratio":
-    include_rf = st.checkbox("Include risk-free asset as an option in portfolio", value=False)
-    if include_rf:
-        tickers.append("RISK_FREE_ASSET")
-        mean_an_returns = mean_an_returns.append(pd.Series(rf, index=["RISK_FREE"]))
-        cov_rf_row = pd.Series(0, index=mean_an_returns.index)
-        covariance = covariance.append(pd.DataFrame([cov_rf_row], index=["RISK_FREE"]))
-        cov_rf_col = pd.Series(0, index=mean_an_returns.index)
-        covariance["RISK_FREE"] = cov_rf_col
-        covariance.loc["RISK_FREE", "RISK_FREE"] = 0.0
-
+tickers = st.session_state["tickers"]
 num_stocks = len(tickers)
 
 
-
-def portfolio_perf(w, erm, cov):
-    returns = np.dot(w, erm)
-    vol = np.sqrt(np.dot(w, np.dot(cov, w))) #might have to transpose the weights depending on how we get the weights 
-    return returns, vol
-
-def sharpe_opt(w, erm, cov, rf):
-    port_return, port_vol = portfolio_perf(w, erm, cov)
-    sharpe_ratio = (port_return - rf) / port_vol
-    return -sharpe_ratio   #we make it negative because we'll us ethe scipy.minimize f(), so by minimising the neg.sharpe, we are in terms maximising the sharpe
-
-#had to add this for the case of the optimisation for risk pref opt. style. 
-def utility_opt(w, erm, cov, risk_aversion):
-    port_return, port_vol = portfolio_perf(w, erm, cov)
-    utility = port_return - (risk_aversion / 2) * (port_vol ** 2) #return - (risk_aversion / 2) * variance
-    return -utility  # same thing as the sharpe f(), we take the negative bc well minimise that negative == maximise
+# ---------- Portfolio math ----------
+def portfolio_perf(weights, returns, cov):
+    ret = np.dot(weights, returns)
+    vol = np.sqrt(np.dot(weights.T, np.dot(cov, weights)))
+    return ret, vol
 
 
-constraints = {'type':'eq', 'fun':lambda w: np.sum(w) - 1}  #this makes sure all the weights add to 1 (-1=0) lambda is like a quick write f() so lambda x: ___x == def__(x):___
+def sharpe_objective(w, returns, cov, rf):
+    r, v = portfolio_perf(w, returns, cov)
+    return -(r - rf) / v
+
+
+def utility_objective(w, returns, cov, A):
+    r, v = portfolio_perf(w, returns, cov)
+    return -(r - (A/2)*(v**2))
+
+
+constraints = {"type": "eq", "fun": lambda w: np.sum(w) - 1}
 
 if allow_shorting:
-    bounds = tuple((-1, 1) for _ in range(num_stocks))  #if shorting's allowed we have to allow egative weights 
+    bounds = tuple((-1, 1) for _ in range(num_stocks))
 else:
     bounds = tuple((0, 1) for _ in range(num_stocks))
 
-starting_point = num_stocks * [1 / num_stocks]
+start = num_stocks * [1/num_stocks]
 
 
-#this is the min formula its complicated
-if opt_style == "Maximize Sharpe Ratio":
-
-    opt_result = minimize(
-        sharpe_opt,
-        starting_point,
-        args=(mean_an_returns.values, covariance, rf),
-        method='SLSQP',
-        bounds=bounds,
-        constraints=constraints
-    )
-
-elif opt_style == "Optimize for Risk Preference":
-
-    opt_result = minimize(
-        utility_opt,
-        starting_point,
-        args=(mean_an_returns.values, covariance, risk_aversion),
-        method='SLSQP',
-        bounds=bounds,
-        constraints=constraints
-    )
-
-elif opt_style == "Both Sharpe and Risk Preference":
-
-    # Step 1: find tangency portfolio (max Sharpe)
-    tangency = minimize(
-        sharpe_opt,
-        starting_point,
-        args=(mean_an_returns.values, covariance, rf),
-        method='SLSQP',
-        bounds=bounds,
-        constraints=constraints
-    )
+# ---------- Tangency portfolio ----------
+tangency = minimize(
+    sharpe_objective,
+    start,
+    args=(mean_returns.values, covariance, rf),
+    method="SLSQP",
+    bounds=bounds,
+    constraints=constraints
+)
 
 w_tan = tangency.x
-
-ret_tan, vol_tan = portfolio_perf(w_tan, mean_an_returns.values, covariance)
-
-weight_tan = (ret_tan - rf) / (risk_aversion * (vol_tan ** 2))
-
-weight_rf = 1 - weight_tan
-
-optimal_weights = weight_tan * w_tan
-
-opt_return = weight_rf * rf + weight_tan * ret_tan
-opt_volatility = abs(weight_tan) * vol_tan
-
-# so the minimize f() takes in a function which it will minimize
-#then it takes a startting point, it will go from there and then itteratively optimize, so this is the variables it has to optimize
-#then it takes the rest of teh variables for the function which are fixed
-#the SLSQP method is the sequential least squares method which is good for opt under constraint
+ret_tan, vol_tan = portfolio_perf(w_tan, mean_returns.values, covariance)
 
 
+# ---------- Optimisation ----------
+if opt_style == "Maximize Sharpe Ratio":
+
+    optimal_weights = w_tan
+    opt_return, opt_vol = ret_tan, vol_tan
 
 
-if opt_style != "Both Sharpe and Risk Preference":
-    optimal_weights = opt_result.x
-    opt_return, opt_volatility = portfolio_perf(optimal_weights, mean_an_returns.values, covariance)
+elif opt_style == "Risk Preference":
+
+    res = minimize(
+        utility_objective,
+        start,
+        args=(mean_returns.values, covariance, risk_aversion),
+        method="SLSQP",
+        bounds=bounds,
+        constraints=constraints
+    )
+
+    optimal_weights = res.x
+    opt_return, opt_vol = portfolio_perf(
+        optimal_weights, mean_returns.values, covariance
+    )
 
 
+elif opt_style == "Both (Capital Allocation Line)":
 
-st.subheader("Optimized Portfolio Weights")
+    w_t = (ret_tan - rf) / (risk_aversion * vol_tan**2)
+    w_rf = 1 - w_t
 
-weights_table = pd.DataFrame({"Ticker": tickers,"Weight": optimal_weights}).set_index("Ticker")
+    optimal_weights = w_t * w_tan
+    opt_return = w_rf * rf + w_t * ret_tan
+    opt_vol = abs(w_t) * vol_tan
 
-st.write(weights_table)
 
-st.write(f"Expected Annual Return: {opt_return:.2%}")
-st.write(f"Expected Annual Volatility: {opt_volatility:.2%}")
+# ---------- Results ----------
+st.subheader("Optimised Weights")
+
+weights_df = pd.DataFrame({
+    "Ticker": tickers,
+    "Weight": optimal_weights
+}).set_index("Ticker")
+
+st.write(weights_df)
+
+st.write(f"Expected Return: {opt_return:.2%}")
+st.write(f"Volatility: {opt_vol:.2%}")
 
 if opt_style == "Maximize Sharpe Ratio":
-    sharpe_ratio = (opt_return - rf) / opt_volatility
-    st.write(f"Sharpe Ratio: {sharpe_ratio:.2f}")
+    sharpe = (opt_return - rf) / opt_vol
+    st.write(f"Sharpe Ratio: {sharpe:.2f}")
 
 
+# ---------- Bar chart ----------
 fig, ax = plt.subplots()
-weights_table['Weight'].plot(kind='bar', ax=ax)
-ax.set_title("optimal portfolio Weights")
+weights_df["Weight"].plot(kind="bar", ax=ax)
+ax.set_title("Portfolio Weights")
 ax.set_ylabel("Weight")
 st.pyplot(fig)
 
-num_ports = 2000
 
+# ---------- Efficient frontier ----------
+num_ports = 2000
 ret_arr = np.zeros(num_ports)
 vol_arr = np.zeros(num_ports)
 
 for i in range(num_ports):
 
-    weights = np.random.random(num_stocks)
-    weights /= np.sum(weights)
+    w = np.random.random(num_stocks)
+    w /= np.sum(w)
 
-    ret_arr[i] = np.sum(mean_an_returns.values * weights)
+    ret_arr[i] = np.sum(mean_returns.values * w)
+    vol_arr[i] = np.sqrt(np.dot(w.T, np.dot(covariance, w)))
 
-    vol_arr[i] = np.sqrt(np.dot(weights.T, np.dot(covariance, weights)))
+
+# ---------- Frontier plot ----------
+fig2, ax2 = plt.subplots()
+
+ax2.scatter(
+    vol_arr,
+    ret_arr,
+    c=(ret_arr - rf) / vol_arr,
+    cmap="viridis",
+    alpha=0.5
+)
+
+ax2.scatter(
+    opt_vol,
+    opt_return,
+    color="red",
+    s=120,
+    label="Optimal Portfolio"
+)
+
+# Capital Allocation Line
+x = np.linspace(0, max(vol_arr), 100)
+cal = rf + (ret_tan - rf) / vol_tan * x
+
+ax2.plot(x, cal, linestyle="--", color="black", label="Capital Allocation Line")
+
+ax2.scatter(vol_tan, ret_tan, color="orange", s=120, label="Tangency Portfolio")
+
+ax2.set_xlabel("Volatility")
+ax2.set_ylabel("Return")
+ax2.set_title("Efficient Frontier")
+ax2.legend()
+
+st.pyplot(fig2)
